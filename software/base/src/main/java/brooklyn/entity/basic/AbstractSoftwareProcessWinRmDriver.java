@@ -18,28 +18,33 @@
  */
 package brooklyn.entity.basic;
 
+import brooklyn.config.ConfigKey;
+import brooklyn.event.AttributeSensor;
+import brooklyn.event.basic.Sensors;
+import brooklyn.location.basic.WinRmMachineLocation;
+import brooklyn.management.Task;
+import brooklyn.util.exceptions.ReferenceWithError;
+import brooklyn.util.repeat.Repeater;
+import brooklyn.util.task.Tasks;
+import brooklyn.util.text.Strings;
+import brooklyn.util.time.Duration;
+import com.google.common.collect.ImmutableList;
+import io.cloudsoft.winrm4j.winrm.WinRmToolResponse;
+import org.python.core.PyException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
-import org.python.core.PyException;
-
-import brooklyn.config.ConfigKey;
-import brooklyn.event.AttributeSensor;
-import brooklyn.event.basic.Sensors;
-import brooklyn.location.basic.WinRmMachineLocation;
-import brooklyn.util.exceptions.ReferenceWithError;
-import brooklyn.util.repeat.Repeater;
-import brooklyn.util.time.Duration;
-import io.cloudsoft.winrm4j.winrm.WinRmToolResponse;
-
-import com.google.api.client.util.Strings;
-import com.google.common.collect.ImmutableList;
-
 public abstract class AbstractSoftwareProcessWinRmDriver extends AbstractSoftwareProcessDriver {
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractSoftwareProcessDriver.class);
 
     AttributeSensor<String> WINDOWS_USERNAME = Sensors.newStringSensor("windows.username",
             "Default Windows username to be used when connecting to the Entity's VM");
@@ -118,20 +123,53 @@ public abstract class AbstractSoftwareProcessWinRmDriver extends AbstractSoftwar
     protected WinRmToolResponse executeCommand(ConfigKey<String> regularCommandKey, ConfigKey<String> powershellCommandKey, boolean allowNoOp) {
         String regularCommand = getEntity().getConfig(regularCommandKey);
         String powershellCommand = getEntity().getConfig(powershellCommandKey);
-        if (Strings.isNullOrEmpty(regularCommand) && Strings.isNullOrEmpty(powershellCommand)) {
+        if (Strings.isBlank(regularCommand) && Strings.isBlank(powershellCommand)) {
             if (allowNoOp) {
                 return new WinRmToolResponse("", "", 0);
             } else {
                 throw new IllegalStateException(String.format("Exactly one of %s or %s must be set", regularCommandKey.getName(), powershellCommandKey.getName()));
             }
-        } else if (!Strings.isNullOrEmpty(regularCommand) && !Strings.isNullOrEmpty(powershellCommand)) {
+        } else if (!Strings.isBlank(regularCommand) && !Strings.isBlank(powershellCommand)) {
             throw new IllegalStateException(String.format("%s and %s cannot both be set", regularCommandKey.getName(), powershellCommandKey.getName()));
         }
 
-        if (Strings.isNullOrEmpty(regularCommand)) {
-            return getLocation().executePsScript(ImmutableList.of(powershellCommand));
+        ByteArrayOutputStream stdIn = new ByteArrayOutputStream();
+        ByteArrayOutputStream stdOut = new ByteArrayOutputStream();
+        ByteArrayOutputStream stdErr = new ByteArrayOutputStream();
+
+        Task<?> currentTask = Tasks.current();
+        if (currentTask != null) {
+            writeToStream(stdIn, Strings.isBlank(regularCommand) ? powershellCommand : regularCommand);
+            Tasks.addTagDynamically(BrooklynTaskTags.tagForStreamSoft(BrooklynTaskTags.STREAM_STDIN, stdIn));
+
+            if (BrooklynTaskTags.stream(currentTask, BrooklynTaskTags.STREAM_STDOUT)==null) {
+                Tasks.addTagDynamically(BrooklynTaskTags.tagForStreamSoft(BrooklynTaskTags.STREAM_STDOUT, stdOut));
+                Tasks.addTagDynamically(BrooklynTaskTags.tagForStreamSoft(BrooklynTaskTags.STREAM_STDERR, stdErr));
+            }
+        }
+
+        WinRmToolResponse response;
+        if (Strings.isBlank(regularCommand)) {
+            response = getLocation().executePsScript(ImmutableList.of(powershellCommand));
         } else {
-            return getLocation().executeScript(ImmutableList.of(regularCommand));
+            response = getLocation().executeScript(ImmutableList.of(regularCommand));
+        }
+
+        if (currentTask != null) {
+            if (BrooklynTaskTags.stream(currentTask, BrooklynTaskTags.STREAM_STDOUT)==null) {
+                writeToStream(stdOut, response.getStdOut());
+                writeToStream(stdErr, response.getStdErr());
+            }
+        }
+
+        return response;
+    }
+
+    private void writeToStream(ByteArrayOutputStream stream, String string)  {
+        try {
+            stream.write(string.getBytes());
+        } catch (IOException e) {
+            LOG.warn("Problem populating one of the std streams for task of entity " + getEntity(), e);
         }
     }
 
