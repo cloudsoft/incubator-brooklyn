@@ -19,13 +19,6 @@
 package brooklyn.location.basic;
 
 import static org.testng.Assert.assertEquals;
-import io.cloudsoft.winrm4j.winrm.WinRmToolResponse;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 import brooklyn.config.BrooklynProperties;
 import brooklyn.entity.BrooklynAppLiveTestSupport;
@@ -35,12 +28,19 @@ import brooklyn.location.jclouds.JcloudsWinRmMachineLocation;
 import brooklyn.management.internal.ManagementContextInternal;
 import brooklyn.test.entity.LocalManagementContextForTests;
 import brooklyn.test.entity.TestApplication;
+import io.cloudsoft.winrm4j.winrm.WinRmToolResponse;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 public class WinRmMachineLocationLiveTest {
-    
+
     // FIXME failing locally with:
     //   Caused by: Traceback (most recent call last):
     //     File "__pyclasspath__/winrm/__init__.py", line 40, in run_cmd
@@ -57,16 +57,18 @@ public class WinRmMachineLocationLiveTest {
     protected ManagementContextInternal mgmt;
 
     private JcloudsWinRmMachineLocation machine;
-    
+
     @BeforeClass(alwaysRun=true)
     public void setUpClass() throws Exception {
         mgmt = new LocalManagementContextForTests(BrooklynProperties.Factory.newDefault());
-        JcloudsLocation loc = (JcloudsLocation) mgmt.getLocationRegistry().resolve("jclouds:aws-ec2:us-west-2", ImmutableMap.of(
-                "inboundPorts", ImmutableList.of(5985, 3389),
-                "displayName", "AWS Oregon (Windows)",
-                "imageId", "us-west-2/ami-8fd3f9bf",
-                "hardwareId", "m3.medium",
-                "useJcloudsSshInit", false));
+        JcloudsLocation loc = (JcloudsLocation) mgmt.getLocationRegistry().resolve("jclouds:aws-ec2:us-west-2", ImmutableMap.<String, Object>builder()
+                .put("inboundPorts", ImmutableList.of(5985, 3389))
+                .put("displayName", "AWS Oregon (Windows)")
+                .put("imageOwner", "801119661308")
+                .put("imageNameRegex", "Windows_Server-2012-R2_RTM-English-64Bit-Base-.*")
+                .put("hardwareId", "m3.medium")
+                .put("useJcloudsSshInit", false)
+                .build());
         machine = (JcloudsWinRmMachineLocation) loc.obtain();
     }
 
