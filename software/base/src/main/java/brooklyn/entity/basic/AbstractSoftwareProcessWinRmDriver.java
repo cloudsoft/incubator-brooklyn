@@ -58,8 +58,13 @@ public abstract class AbstractSoftwareProcessWinRmDriver extends AbstractSoftwar
     }
 
     @Override
-    public void runPreInstallCommand(String command) {
-        execute(ImmutableList.of(command));
+    public void runPreInstallCommand() {
+        if (Strings.isNonBlank(getEntity().getConfig(VanillaWindowsProcess.PRE_INSTALL_COMMAND)) || Strings.isNonBlank(getEntity().getConfig(VanillaWindowsProcess.PRE_INSTALL_POWERSHELL_COMMAND))) {
+            executeCommand(VanillaWindowsProcess.PRE_INSTALL_COMMAND, VanillaWindowsProcess.PRE_INSTALL_POWERSHELL_COMMAND, true);
+        }
+        if (entity.getConfig(VanillaWindowsProcess.PRE_INSTALL_REBOOT_REQUIRED)) {
+            rebootAndWait();
+        }
     }
 
     @Override
@@ -68,18 +73,24 @@ public abstract class AbstractSoftwareProcessWinRmDriver extends AbstractSoftwar
     }
 
     @Override
-    public void runPostInstallCommand(String command) {
-        execute(ImmutableList.of(command));
+    public void runPostInstallCommand() {
+        if (Strings.isNonBlank(entity.getConfig(BrooklynConfigKeys.POST_INSTALL_COMMAND)) || Strings.isNonBlank(getEntity().getConfig(VanillaWindowsProcess.POST_INSTALL_POWERSHELL_COMMAND))) {
+            executeCommand(BrooklynConfigKeys.POST_INSTALL_COMMAND, VanillaWindowsProcess.POST_INSTALL_POWERSHELL_COMMAND, true);
+        }
     }
 
     @Override
-    public void runPreLaunchCommand(String command) {
-        execute(ImmutableList.of(command));
+    public void runPreLaunchCommand() {
+        if (Strings.isNonBlank(entity.getConfig(BrooklynConfigKeys.PRE_LAUNCH_COMMAND)) || Strings.isNonBlank(entity.getConfig(VanillaWindowsProcess.PRE_LAUNCH_POWERSHELL_COMMAND))) {
+            executeCommand(BrooklynConfigKeys.PRE_LAUNCH_COMMAND, VanillaWindowsProcess.PRE_LAUNCH_POWERSHELL_COMMAND, true);
+        }
     }
 
     @Override
-    public void runPostLaunchCommand(String command) {
-        execute(ImmutableList.of(command));
+    public void runPostLaunchCommand() {
+        if (Strings.isNonBlank(entity.getConfig(BrooklynConfigKeys.POST_LAUNCH_COMMAND)) || Strings.isNonBlank(entity.getConfig(VanillaWindowsProcess.POST_LAUNCH_POWERSHELL_COMMAND))) {
+            executeCommand(BrooklynConfigKeys.POST_LAUNCH_COMMAND, VanillaWindowsProcess.POST_LAUNCH_POWERSHELL_COMMAND, true);
+        }
     }
 
     @Override
