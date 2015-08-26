@@ -20,8 +20,11 @@ package brooklyn.entity.rebind;
 
 import java.io.File;
 
+import com.google.common.base.Function;
+
 import brooklyn.entity.rebind.persister.PersistenceObjectStore;
 import brooklyn.management.ManagementContext;
+import brooklyn.mementos.BrooklynMementoPersister;
 
 /**
  * See {@link RebindTestFixture#rebind(RebindOptions)} and {@link RebindTestUtils#rebind(RebindOptions)}.
@@ -34,6 +37,7 @@ public class RebindOptions {
     public ManagementContext newManagementContext;
     public File mementoDir;
     public File mementoDirBackup;
+    public Function<BrooklynMementoPersister, Void> stateTransformer;
     public ClassLoader classLoader;
     public PersistenceObjectStore objectStore;
     
@@ -49,6 +53,7 @@ public class RebindOptions {
         result.newManagementContext(options.newManagementContext);
         result.mementoDir(options.mementoDir);
         result.mementoDirBackup(options.mementoDirBackup);
+        result.stateTransformer(options.stateTransformer);
         result.classLoader(options.classLoader);
         result.objectStore(options.objectStore);
         return result;
@@ -83,6 +88,10 @@ public class RebindOptions {
     }
     public RebindOptions classLoader(ClassLoader val) {
         this.classLoader = val;
+        return this;
+    }
+    public RebindOptions stateTransformer(Function<BrooklynMementoPersister, Void> val) {
+        this.stateTransformer = val;
         return this;
     }
     public RebindOptions objectStore(PersistenceObjectStore val) {

@@ -36,6 +36,15 @@ import javax.ws.rs.core.Response.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.io.Files;
+import com.sun.jersey.core.header.FormDataContentDisposition;
+
 import brooklyn.catalog.CatalogItem;
 import brooklyn.catalog.CatalogItem.CatalogItemType;
 import brooklyn.catalog.CatalogPredicates;
@@ -68,15 +77,6 @@ import brooklyn.util.exceptions.Exceptions;
 import brooklyn.util.stream.Streams;
 import brooklyn.util.text.StringPredicates;
 import brooklyn.util.text.Strings;
-
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.io.Files;
-import com.sun.jersey.core.header.FormDataContentDisposition;
 
 @HaHotStateRequired
 public class CatalogResource extends AbstractBrooklynRestResource implements CatalogApi {
@@ -217,15 +217,21 @@ public class CatalogResource extends AbstractBrooklynRestResource implements Cat
 
     @Override
     public List<CatalogEntitySummary> listEntities(String regex, String fragment, boolean allVersions) {
-        List<CatalogItemSummary> result = getCatalogItemSummariesMatchingRegexFragment(CatalogPredicates.IS_ENTITY, regex, fragment, allVersions);
+        Predicate<CatalogItem<Entity, EntitySpec<?>>> filter =
+                Predicates.and(
+                        CatalogPredicates.IS_ENTITY,
+                        CatalogPredicates.<Entity, EntitySpec<?>>disabled(false));
+        List<CatalogItemSummary> result = getCatalogItemSummariesMatchingRegexFragment(filter, regex, fragment, allVersions);
         return castList(result, CatalogEntitySummary.class);
     }
 
     @Override
     public List<CatalogItemSummary> listApplications(String regex, String fragment, boolean allVersions) {
         Predicate<CatalogItem<Application, EntitySpec<? extends Application>>> filter =
-                Predicates.and(CatalogPredicates.<Application,EntitySpec<? extends Application>>deprecated(false),
-                        CatalogPredicates.IS_TEMPLATE);
+                Predicates.and(
+                        CatalogPredicates.IS_TEMPLATE,
+                        CatalogPredicates.<Application,EntitySpec<? extends Application>>deprecated(false),
+                        CatalogPredicates.<Application,EntitySpec<? extends Application>>disabled(false));
         return getCatalogItemSummariesMatchingRegexFragment(filter, regex, fragment, allVersions);
     }
 
@@ -280,7 +286,11 @@ public class CatalogResource extends AbstractBrooklynRestResource implements Cat
 
     @Override
     public List<CatalogPolicySummary> listPolicies(String regex, String fragment, boolean allVersions) {
-        List<CatalogItemSummary> result = getCatalogItemSummariesMatchingRegexFragment(CatalogPredicates.IS_POLICY, regex, fragment, allVersions);
+        Predicate<CatalogItem<Policy, PolicySpec<?>>> filter =
+                Predicates.and(
+                        CatalogPredicates.IS_POLICY,
+                        CatalogPredicates.<Policy, PolicySpec<?>>disabled(false));
+        List<CatalogItemSummary> result = getCatalogItemSummariesMatchingRegexFragment(filter, regex, fragment, allVersions);
         return castList(result, CatalogPolicySummary.class);
     }
 
@@ -322,7 +332,11 @@ public class CatalogResource extends AbstractBrooklynRestResource implements Cat
 
     @Override
     public List<CatalogLocationSummary> listLocations(String regex, String fragment, boolean allVersions) {
-        List<CatalogItemSummary> result = getCatalogItemSummariesMatchingRegexFragment(CatalogPredicates.IS_LOCATION, regex, fragment, allVersions);
+        Predicate<CatalogItem<Location, LocationSpec<?>>> filter =
+                Predicates.and(
+                        CatalogPredicates.IS_LOCATION,
+                        CatalogPredicates.<Location, LocationSpec<?>>disabled(false));
+        List<CatalogItemSummary> result = getCatalogItemSummariesMatchingRegexFragment(filter, regex, fragment, allVersions);
         return castList(result, CatalogLocationSummary.class);
     }
 
@@ -406,6 +420,13 @@ public class CatalogResource extends AbstractBrooklynRestResource implements Cat
     }
 
     @Override
+    public void setDeprecatedLegacy(String itemId, boolean deprecated) {
+        log.warn("Use of deprecated \"/v1/catalog/entities/{itemId}/deprecated/{deprecated}\" for "+itemId
+                +"; use \"/v1/catalog/entities/{itemId}/deprecated\" with request body");
+        setDeprecated(itemId, deprecated);
+    }
+    
+    @Override
     public void setDeprecated(String itemId, boolean deprecated) {
         if (!Entitlements.isEntitled(mgmt().getEntitlementManager(), Entitlements.MODIFY_CATALOG_ITEM, StringAndArgument.of(itemId, "deprecated"))) {
             throw WebResourceUtils.unauthorized("User '%s' is not authorized to modify catalog",
@@ -415,6 +436,19 @@ public class CatalogResource extends AbstractBrooklynRestResource implements Cat
         if (item==null)
             throw WebResourceUtils.notFound("Catalog item with id '%s' not found", itemId);
         item.setDeprecated(deprecated);
+        mgmt().getCatalog().persist(item);
+    }
+
+    @Override
+    public void setDisabled(String itemId, boolean disabled) {
+        if (!Entitlements.isEntitled(mgmt().getEntitlementManager(), Entitlements.MODIFY_CATALOG_ITEM, StringAndArgument.of(itemId, "disabled"))) {
+            throw WebResourceUtils.unauthorized("User '%s' is not authorized to modify catalog",
+                    Entitlements.getEntitlementContext().user());
+        }
+        CatalogItem<?, ?> item = CatalogUtils.getCatalogItemOptionalVersion(mgmt(), itemId);
+        if (item==null)
+            throw WebResourceUtils.notFound("Catalog item with id '%s' not found", itemId);
+        item.setDisabled(disabled);
         mgmt().getCatalog().persist(item);
     }
 

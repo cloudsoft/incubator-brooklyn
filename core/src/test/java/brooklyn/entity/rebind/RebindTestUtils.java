@@ -30,6 +30,11 @@ import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
+
 import brooklyn.config.BrooklynProperties;
 import brooklyn.config.BrooklynServerConfig;
 import brooklyn.entity.Application;
@@ -49,16 +54,13 @@ import brooklyn.management.ha.ManagementPlaneSyncRecordPersisterToObjectStore;
 import brooklyn.management.internal.LocalManagementContext;
 import brooklyn.management.internal.ManagementContextInternal;
 import brooklyn.mementos.BrooklynMemento;
+import brooklyn.mementos.BrooklynMementoPersister;
 import brooklyn.mementos.BrooklynMementoRawData;
 import brooklyn.test.entity.LocalManagementContextForTests;
 import brooklyn.util.io.FileUtil;
 import brooklyn.util.javalang.Serializers;
 import brooklyn.util.javalang.Serializers.ObjectReplacer;
 import brooklyn.util.time.Duration;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
 
 public class RebindTestUtils {
 
@@ -382,6 +384,7 @@ public class RebindTestUtils {
         boolean hasPersister = newManagementContext != null && newManagementContext.getRebindManager().getPersister() != null;
         boolean checkSerializable = options.checkSerializable;
         boolean terminateOrigManagementContext = options.terminateOrigManagementContext;
+        Function<BrooklynMementoPersister, Void> stateTransformer = options.stateTransformer;
         
         LOG.info("Rebinding app, using mementoDir " + mementoDir + "; object store " + objectStore);
 
@@ -421,6 +424,11 @@ public class RebindTestUtils {
             FileUtil.setFilePermissionsTo700(mementoDirBackup);
         }
         
+        if (stateTransformer != null) {
+            BrooklynMementoPersister persister = newManagementContext.getRebindManager().getPersister();
+            stateTransformer.apply(persister);
+        }
+
         List<Application> newApps = newManagementContext.getRebindManager().rebind(classLoader, exceptionHandler, ManagementNodeState.MASTER);
         newManagementContext.getRebindManager().startPersistence();
         return newApps;

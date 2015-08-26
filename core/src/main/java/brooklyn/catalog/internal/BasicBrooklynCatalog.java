@@ -208,7 +208,9 @@ public class BasicBrooklynCatalog implements BrooklynCatalog {
     }
 
     private String getDefaultVersion(String symbolicName) {
-        Iterable<CatalogItem<Object, Object>> versions = getCatalogItems(CatalogPredicates.symbolicName(Predicates.equalTo(symbolicName)));
+        Iterable<CatalogItem<Object, Object>> versions = getCatalogItems(Predicates.and(
+                CatalogPredicates.disabled(false),
+                CatalogPredicates.symbolicName(Predicates.equalTo(symbolicName))));
         Collection<CatalogItem<Object, Object>> orderedVersions = sortVersionsDesc(versions);
         if (!orderedVersions.isEmpty()) {
             return orderedVersions.iterator().next().getVersion();

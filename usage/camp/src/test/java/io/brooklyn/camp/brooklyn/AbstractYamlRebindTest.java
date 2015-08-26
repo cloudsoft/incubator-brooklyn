@@ -18,9 +18,6 @@
  */
 package io.brooklyn.camp.brooklyn;
 
-import io.brooklyn.camp.spi.Assembly;
-import io.brooklyn.camp.spi.AssemblyTemplate;
-
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.Set;
@@ -30,6 +27,12 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+
+import brooklyn.catalog.CatalogItem;
 import brooklyn.catalog.internal.CatalogUtils;
 import brooklyn.entity.Entity;
 import brooklyn.entity.basic.BrooklynTaskTags;
@@ -42,11 +45,8 @@ import brooklyn.management.Task;
 import brooklyn.management.internal.LocalManagementContext;
 import brooklyn.util.ResourceUtils;
 import brooklyn.util.config.ConfigBag;
-
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
+import io.brooklyn.camp.spi.Assembly;
+import io.brooklyn.camp.spi.AssemblyTemplate;
 
 public class AbstractYamlRebindTest extends RebindTestFixture<StartableApplication> {
 
@@ -111,7 +111,7 @@ public class AbstractYamlRebindTest extends RebindTestFixture<StartableApplicati
     ///////////////////////////////////////////////////
     
     protected void waitForApplicationTasks(Entity app) {
-        Set<Task<?>> tasks = BrooklynTaskTags.getTasksInEntityContext(origManagementContext.getExecutionManager(), app);
+        Set<Task<?>> tasks = BrooklynTaskTags.getTasksInEntityContext(mgmt().getExecutionManager(), app);
         getLogger().info("Waiting on " + tasks.size() + " task(s)");
         for (Task<?> t : tasks) {
             t.blockUntilEnded();
@@ -144,11 +144,11 @@ public class AbstractYamlRebindTest extends RebindTestFixture<StartableApplicati
             throw e;
         }
         getLogger().info("Test - created " + assembly);
-        final Entity app = origManagementContext.getEntityManager().getEntity(assembly.getId());
+        final Entity app = mgmt().getEntityManager().getEntity(assembly.getId());
         getLogger().info("App - " + app);
         
         // wait for app to have started
-        Set<Task<?>> tasks = origManagementContext.getExecutionManager().getTasksWithAllTags(ImmutableList.of(
+        Set<Task<?>> tasks = mgmt().getExecutionManager().getTasksWithAllTags(ImmutableList.of(
                 BrooklynTaskTags.EFFECTOR_TAG, 
                 BrooklynTaskTags.tagForContextEntity(app), 
                 BrooklynTaskTags.tagForEffectorCall(app, "start", ConfigBag.newInstance(ImmutableMap.of("locations", ImmutableMap.of())))));
@@ -175,8 +175,8 @@ public class AbstractYamlRebindTest extends RebindTestFixture<StartableApplicati
         addCatalogItems(joinLines(catalogYaml));
     }
 
-    protected void addCatalogItems(String catalogYaml) {
-        mgmt().getCatalog().addItems(catalogYaml, forceUpdate);
+    protected Iterable<? extends CatalogItem<?,?>> addCatalogItems(String catalogYaml) {
+        return mgmt().getCatalog().addItems(catalogYaml, forceUpdate);
     }
 
     protected void deleteCatalogEntity(String catalogItem) {
