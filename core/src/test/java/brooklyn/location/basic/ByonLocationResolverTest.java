@@ -354,7 +354,7 @@ public class ByonLocationResolverTest {
         String spec = "byon";
         Map<String, ?> flags = ImmutableMap.of(
                 "hosts", ImmutableList.of("1.1.1.1", "2.2.2.2"),
-                "osfamily", "linux"
+                "osFamily", "linux"
         );
         MachineProvisioningLocation<MachineLocation> provisioner = resolve(spec, flags);
         MachineLocation location = provisioner.obtain(ImmutableMap.of());

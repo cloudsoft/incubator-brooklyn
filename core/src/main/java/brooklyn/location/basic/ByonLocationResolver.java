@@ -66,7 +66,7 @@ public class ByonLocationResolver extends AbstractLocationResolver {
     
     public static final String BYON = "byon";
 
-    public static final ConfigKey<String> OS_FAMILY = ConfigKeys.newStringConfigKey("osfamily", "OS Family of the machine, either windows or linux", "linux");
+    public static final ConfigKey<String> OS_FAMILY = ConfigKeys.newStringConfigKey("osFamily", "OS Family of the machine, either windows or linux", "linux");
 
     public static final Map<String, Class<? extends MachineLocation>> OS_TO_MACHINE_LOCATION_TYPE = ImmutableMap.<String, Class<? extends MachineLocation>>of(
             "windows", WinRmMachineLocation.class,
