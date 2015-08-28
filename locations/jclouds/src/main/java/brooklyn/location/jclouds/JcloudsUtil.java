@@ -320,7 +320,7 @@ public class JcloudsUtil implements JcloudsLocationConfig {
                 interpret("chmod 600 /root/.ssh/authorized_keys"));
     }
 
-    public static String getFirstReachableAddress(ComputeServiceContext context, NodeMetadata node) {
+    public static String getFirstReachableAddress(ComputeServiceContext context, NodeMetadata node, boolean windows) {
         // To pick the address, it relies on jclouds `sshForNode().apply(Node)` to check all IPs of node (private+public),
         // to find one that is reachable. It does `openSocketFinder.findOpenSocketOnNode(node, node.getLoginPort(), ...)`.
         // This keeps trying for time org.jclouds.compute.reference.ComputeServiceConstants.Timeouts.portOpen.
@@ -346,7 +346,13 @@ public class JcloudsUtil implements JcloudsLocationConfig {
              * others have reported: java.lang.IllegalArgumentException: DER length more than 4 bytes
              * when using a key with a passphrase (perhaps from other clouds?); not sure if that's this callpath or a different one.
              */
-            throw new IllegalStateException("Unable to connect SshClient to "+node+"; check that the node is accessible and that the SSH key exists and is correctly configured, including any passphrase defined", e);
+            String msg;
+            if (windows) {
+                msg = "Unable to connect to "+node+"; check that the node's port "+node.getLoginPort()+" is accessible";
+            } else {
+                msg = "Unable to connect to "+node+"; check that the node is accessible and that the SSH key exists and is correctly configured, including any passphrase defined";
+            }
+            throw new IllegalStateException(msg, e);
         }
         return client.getHostAddress();
     }
