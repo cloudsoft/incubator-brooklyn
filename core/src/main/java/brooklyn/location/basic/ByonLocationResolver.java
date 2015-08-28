@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.net.InetAddress;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -95,7 +96,7 @@ public class ByonLocationResolver extends AbstractLocationResolver {
         config.remove("hosts");
         String user = (String) config.getStringKey("user");
         Integer port = (Integer) TypeCoercions.coerce(config.getStringKey("port"), Integer.class);
-        Class<? extends MachineLocation> locationClass = OS_TO_MACHINE_LOCATION_TYPE.get(config.get(OS_FAMILY));
+        Class<? extends MachineLocation> locationClass = getLocationClass(config.get(OS_FAMILY));
 
         MutableMap<String, Object> defaultProps = MutableMap.of();
         defaultProps.addIfNotNull("user", user);
@@ -139,6 +140,10 @@ public class ByonLocationResolver extends AbstractLocationResolver {
         return config;
     }
     
+    private Class<? extends MachineLocation> getLocationClass(String osFamily) {
+        return osFamily == null ? null : OS_TO_MACHINE_LOCATION_TYPE.get(osFamily.toLowerCase(Locale.ENGLISH));
+    }
+
     protected LocationSpec<? extends MachineLocation> parseMachine(Map<String, ?> vals, Class<? extends MachineLocation> locationClass, Map<String, ?> defaults, String specForErrMsg) {
         Map<String, Object> valSanitized = Sanitizer.sanitize(vals);
         Map<String, Object> machineConfig = MutableMap.copyOf(vals);
@@ -196,7 +201,7 @@ public class ByonLocationResolver extends AbstractLocationResolver {
         
         Class<? extends MachineLocation> locationClassHere = locationClass;
         if (osFamily != null) {
-            locationClassHere = OS_TO_MACHINE_LOCATION_TYPE.get(osFamily);
+            locationClassHere = getLocationClass(osFamily);
         }
 
         return LocationSpec.create(locationClassHere).configure(machineConfig);
