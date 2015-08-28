@@ -18,10 +18,16 @@
  */
 package brooklyn.entity.basic;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import brooklyn.location.basic.WinRmMachineLocation;
 import brooklyn.util.net.UserAndHostAndPort;
+import brooklyn.util.text.Strings;
+import io.cloudsoft.winrm4j.winrm.WinRmToolResponse;
 
 public class VanillaWindowsProcessWinRmDriver extends AbstractSoftwareProcessWinRmDriver implements VanillaWindowsProcessDriver {
+    private static final Logger LOG = LoggerFactory.getLogger(VanillaWindowsProcessWinRmDriver.class);
 
     public VanillaWindowsProcessWinRmDriver(EntityLocal entity, WinRmMachineLocation location) {
         super(entity, location);
@@ -35,20 +41,13 @@ public class VanillaWindowsProcessWinRmDriver extends AbstractSoftwareProcessWin
 
         super.start();
     }
-    
-    @Override
-    public void preInstall() {
-        super.preInstall();
-        executeCommand(VanillaWindowsProcess.PRE_INSTALL_COMMAND, VanillaWindowsProcess.PRE_INSTALL_POWERSHELL_COMMAND, true);
-        if (entity.getConfig(VanillaWindowsProcess.PRE_INSTALL_REBOOT_REQUIRED)) {
-            rebootAndWait();
-        }
-    }
 
     @Override
     public void install() {
         // TODO: Follow install path of VanillaSoftwareProcessSshDriver
-        executeCommand(VanillaWindowsProcess.INSTALL_COMMAND, VanillaWindowsProcess.INSTALL_POWERSHELL_COMMAND, true);
+        if(Strings.isNonBlank(getEntity().getConfig(VanillaWindowsProcess.INSTALL_COMMAND)) || Strings.isNonBlank(getEntity().getConfig(VanillaWindowsProcess.INSTALL_POWERSHELL_COMMAND))) {
+            executeCommand(VanillaWindowsProcess.INSTALL_COMMAND, VanillaWindowsProcess.INSTALL_POWERSHELL_COMMAND, true);
+        }
         if (entity.getConfig(VanillaWindowsProcess.INSTALL_REBOOT_REQUIRED)) {
             rebootAndWait();
         }
@@ -57,7 +56,9 @@ public class VanillaWindowsProcessWinRmDriver extends AbstractSoftwareProcessWin
     @Override
     public void customize() {
         // TODO: Follow customize path of VanillaSoftwareProcessSshDriver
-        executeCommand(VanillaWindowsProcess.CUSTOMIZE_COMMAND, VanillaWindowsProcess.CUSTOMIZE_POWERSHELL_COMMAND, true);
+        if(Strings.isNonBlank(getEntity().getConfig(VanillaWindowsProcess.CUSTOMIZE_COMMAND)) || Strings.isNonBlank(getEntity().getConfig(VanillaWindowsProcess.CUSTOMIZE_POWERSHELL_COMMAND))) {
+            executeCommand(VanillaWindowsProcess.CUSTOMIZE_COMMAND, VanillaWindowsProcess.CUSTOMIZE_POWERSHELL_COMMAND, true);
+        }
         if (entity.getConfig(VanillaWindowsProcess.CUSTOMIZE_REBOOT_REQUIRED)) {
             rebootAndWait();
         }
@@ -70,8 +71,12 @@ public class VanillaWindowsProcessWinRmDriver extends AbstractSoftwareProcessWin
 
     @Override
     public boolean isRunning() {
-        return executeCommand(VanillaWindowsProcess.CHECK_RUNNING_COMMAND,
-                VanillaWindowsProcess.CHECK_RUNNING_POWERSHELL_COMMAND, false).getStatusCode() == 0;
+        WinRmToolResponse runningCheck = executeCommand(VanillaWindowsProcess.CHECK_RUNNING_COMMAND,
+                VanillaWindowsProcess.CHECK_RUNNING_POWERSHELL_COMMAND, false);
+        if(runningCheck.getStatusCode() != 0) {
+            LOG.info(getEntity() + " isRunning check failed: exit code "  + runningCheck.getStatusCode() + "; " + runningCheck.getStdErr());
+        }
+        return runningCheck.getStatusCode() == 0;
     }
 
     @Override

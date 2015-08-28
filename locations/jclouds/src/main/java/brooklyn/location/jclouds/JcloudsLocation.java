@@ -1570,7 +1570,7 @@ public class JcloudsLocation extends AbstractCloudMachineProvisioningLocation im
                 Optional<String> initialPassword = initialCredentials.getOptionalPassword();
                 Optional<String> initialPrivateKey = initialCredentials.getOptionalPrivateKey();
                 String initialUser = initialCredentials.getUser();
-                String address = hostAndPortOverride.isPresent() ? hostAndPortOverride.get().getHostText() : JcloudsUtil.getFirstReachableAddress(computeService.getContext(), node);
+                String address = hostAndPortOverride.isPresent() ? hostAndPortOverride.get().getHostText() : JcloudsUtil.getFirstReachableAddress(computeService.getContext(), node, false);
                 int port = hostAndPortOverride.isPresent() ? hostAndPortOverride.get().getPort() : node.getLoginPort();
                 
                 Map<String,Object> sshProps = Maps.newLinkedHashMap(config.getAllConfig());
@@ -2048,7 +2048,7 @@ public class JcloudsLocation extends AbstractCloudMachineProvisioningLocation im
             LOG.debug("Could not resolve reported address '"+address+"' for "+vmHostname+" ("+setup.getDescription()+"/"+node+"), requesting reachable address");
             if (computeService==null) throw Exceptions.propagate(e);
             // this has sometimes already been done in waitForReachable (unless skipped) but easy enough to do again
-            address = JcloudsUtil.getFirstReachableAddress(computeService.getContext(), node);
+            address = JcloudsUtil.getFirstReachableAddress(computeService.getContext(), node, false);
         }
 
         if (LOG.isDebugEnabled())
@@ -2406,7 +2406,8 @@ public class JcloudsLocation extends AbstractCloudMachineProvisioningLocation im
                 ? hostAndPortOverride.get().getHostText() 
                 : JcloudsUtil.getFirstReachableAddress(
                         computeService.getContext(), 
-                        NodeMetadataBuilder.fromNodeMetadata(node).loginPort(vmPort).build());
+                        NodeMetadataBuilder.fromNodeMetadata(node).loginPort(vmPort).build(),
+                        true);
 
         final Session session = WinRMFactory.INSTANCE.createSession(vmIp+":"+vmPort, user, password);
 
@@ -2436,7 +2437,7 @@ public class JcloudsLocation extends AbstractCloudMachineProvisioningLocation im
         }
         
         String user = expectedCredentials.getUser();
-        String vmIp = hostAndPortOverride.isPresent() ? hostAndPortOverride.get().getHostText() : JcloudsUtil.getFirstReachableAddress(computeService.getContext(), node);
+        String vmIp = hostAndPortOverride.isPresent() ? hostAndPortOverride.get().getHostText() : JcloudsUtil.getFirstReachableAddress(computeService.getContext(), node, false);
         if (vmIp==null) LOG.warn("Unable to extract IP for "+node+" ("+setup.getDescription()+"): subsequent connection attempt will likely fail");
         int vmPort = hostAndPortOverride.isPresent() ? hostAndPortOverride.get().getPortOrDefault(22) : 22;
 
@@ -2570,7 +2571,7 @@ public class JcloudsLocation extends AbstractCloudMachineProvisioningLocation im
             HostAndPort inferredHostAndPort = null;
             if (!sshHostAndPort.isPresent()) {
                 try {
-                    String vmIp = JcloudsUtil.getFirstReachableAddress(this.getComputeService().getContext(), node);
+                    String vmIp = JcloudsUtil.getFirstReachableAddress(this.getComputeService().getContext(), node, isWindows(node, setup));
                     int port = node.getLoginPort();
                     inferredHostAndPort = HostAndPort.fromParts(vmIp, port);
                 } catch (Exception e) {
