@@ -69,7 +69,7 @@ public class CreateUserPolicy extends AbstractPolicy implements SensorEventListe
     // TODO Should review duplication with:
     //  - JcloudsLocationConfig.GRANT_USER_SUDO
     //    (but config default/description and context of use are different)
-    //  - AdminAccess in JcloudsLocation.createUserStatements
+    //  - AdminAccess in JcloudsLocation.createUserStatements 
     
     // TODO Could make the password explicitly configurable, or auto-generate if not set?
     
@@ -111,6 +111,7 @@ public class CreateUserPolicy extends AbstractPolicy implements SensorEventListe
     
     protected void addUser(Entity entity, SshMachineLocation machine) {
         boolean grantSudo = getRequiredConfig(GRANT_SUDO);
+        boolean resetPassword = machine.getConfig(SshMachineLocation.BYON_USER_RESET_LOGIN);
         String user = getRequiredConfig(VM_USERNAME);
         String password = Identifiers.makeRandomId(12);
         String hostname = machine.getAddress().getHostName();
@@ -126,7 +127,7 @@ public class CreateUserPolicy extends AbstractPolicy implements SensorEventListe
                 .adminUsername(user)
                 .adminPassword(password)
                 .grantSudoToAdminUser(false)
-                .resetLoginPassword(true)
+                .resetLoginPassword(resetPassword)
                 .loginPassword(password)
                 .authorizeAdminPublicKey(false)
                 .adminPublicKey("ignored")

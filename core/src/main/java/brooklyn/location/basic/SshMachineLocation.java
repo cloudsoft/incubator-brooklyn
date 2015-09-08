@@ -146,6 +146,12 @@ public class SshMachineLocation extends AbstractLocation implements MachineLocat
     public static final ConfigKey<Boolean> DETECT_MACHINE_DETAILS = ConfigKeys.newBooleanConfigKey("detectMachineDetails",
             "Attempt to detect machine details automatically. Works with SSH-accessible Linux instances.", true);
 
+    public static final ConfigKey<Boolean> BYON_USER_RESET_LOGIN = ConfigKeys.newBooleanConfigKey(
+            "byonResetLogin",
+            "Whether to reset the password of the BYON login user in case it is used to create a new one,"
+            + "e.g. via a custom security policy such as org.apache.brooklyn.policy.jclouds.os.CreateUserPolicy",
+            true);
+
     public static final ConfigKey<Iterable<String>> PRIVATE_ADDRESSES = ConfigKeys.newConfigKey(
             new TypeToken<Iterable<String>>() {},
             "privateAddresses",
