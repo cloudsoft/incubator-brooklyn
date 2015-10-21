@@ -19,21 +19,19 @@
 package org.apache.brooklyn.location.jclouds;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
 
 import java.io.File;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 import org.apache.brooklyn.api.location.LocationSpec;
 import org.apache.brooklyn.location.ssh.SshMachineLocation;
 import org.apache.brooklyn.util.collections.MutableMap;
 import org.apache.brooklyn.util.os.Os;
 import org.apache.brooklyn.util.stream.Streams;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -173,30 +171,15 @@ public class JcloudsLoginLiveTest extends AbstractJcloudsLiveTest {
     }
 
     @Test(groups = {"Live"})
-    public void testSpecifyingPasswordAndSshKeysPrefersKeysAndDisablesPassword() throws Exception {
-        runSpecifyingPasswordAndSshKeysPrefersKeys(false);
-    }
-
-    @Test(groups = {"Live"})
-    public void testSpecifyingPasswordAndSshKeysPrefersKeysAndAllowsPassword() throws Exception {
-        runSpecifyingPasswordAndSshKeysPrefersKeys(true);
-    }
-
-    protected void runSpecifyingPasswordAndSshKeysPrefersKeys(boolean leavePasswordSsh) throws Exception {
+    protected void testSpecifyingPasswordAndSshKeysPrefersKeys() throws Exception {
         brooklynProperties.put(BROOKLYN_PROPERTIES_PREFIX+JcloudsLocationConfig.USER.getName(), "myname");
         brooklynProperties.put(BROOKLYN_PROPERTIES_PREFIX+JcloudsLocationConfig.PRIVATE_KEY_FILE.getName(), "~/.ssh/id_rsa");
         brooklynProperties.put(BROOKLYN_PROPERTIES_PREFIX+JcloudsLocationConfig.PUBLIC_KEY_FILE.getName(), "~/.ssh/id_rsa.pub");
         brooklynProperties.put(BROOKLYN_PROPERTIES_PREFIX+JcloudsLocationConfig.PASSWORD.getName(), "mypassword");
-        if (leavePasswordSsh) {
-            brooklynProperties.put(BROOKLYN_PROPERTIES_PREFIX+JcloudsLocationConfig.DISABLE_ROOT_AND_PASSWORD_SSH.getName(), false);
-        }
         jcloudsLocation = (JcloudsLocation) managementContext.getLocationRegistry().resolve(AWS_EC2_LOCATION_SPEC);
 
         machine = createEc2Machine();
         assertSshable(machine);
-
-        assertNull(machine.config().get(SshMachineLocation.PASSWORD));
-        assertNotNull(machine.config().get(SshMachineLocation.PRIVATE_KEY_DATA));
 
         assertSshable(ImmutableMap.builder()
                 .put("address", machine.getAddress())
@@ -204,19 +187,11 @@ public class JcloudsLoginLiveTest extends AbstractJcloudsLiveTest {
                 .put(SshMachineLocation.PRIVATE_KEY_FILE, Os.tidyPath("~/.ssh/id_rsa"))
                 .build());
 
-        if (leavePasswordSsh) {
-            assertSshable(ImmutableMap.builder()
-                    .put("address", machine.getAddress())
-                    .put("user", "myname")
-                    .put(SshMachineLocation.PASSWORD, "mypassword")
-                    .build());
-        } else {
-            assertNotSshable(ImmutableMap.builder()
-                    .put("address", machine.getAddress())
-                    .put("user", "myname")
-                    .put(SshMachineLocation.PASSWORD, "mypassword")
-                    .build());
-        }
+        assertSshable(ImmutableMap.builder()
+                .put("address", machine.getAddress())
+                .put("user", "myname")
+                .put(SshMachineLocation.PASSWORD, "mypassword")
+                .build());
     }
 
     @Test(groups = {"Live"})
@@ -269,7 +244,6 @@ public class JcloudsLoginLiveTest extends AbstractJcloudsLiveTest {
         brooklynProperties.put(BROOKLYN_PROPERTIES_PREFIX+JcloudsLocationConfig.USER.getName(), "myname");
         brooklynProperties.put(BROOKLYN_PROPERTIES_PREFIX+JcloudsLocationConfig.PASSWORD.getName(), "mypassword");
         brooklynProperties.put(BROOKLYN_PROPERTIES_PREFIX+JcloudsLocationConfig.PUBLIC_KEY_FILE.getName(), "~/.ssh/id_rsa.pub");
-        brooklynProperties.put(BROOKLYN_PROPERTIES_PREFIX+JcloudsLocationConfig.DISABLE_ROOT_AND_PASSWORD_SSH.getName(), false);
         jcloudsLocation = (JcloudsLocation) managementContext.getLocationRegistry().resolve(AWS_EC2_LOCATION_SPEC);
 
         machine = createEc2Machine();
@@ -296,7 +270,6 @@ public class JcloudsLoginLiveTest extends AbstractJcloudsLiveTest {
 
             brooklynProperties.put(BROOKLYN_PROPERTIES_PREFIX+JcloudsLocationConfig.USER.getName(), "root");
             brooklynProperties.put(BROOKLYN_PROPERTIES_PREFIX+JcloudsLocationConfig.PASSWORD.getName(), "mypassword");
-            brooklynProperties.put(BROOKLYN_PROPERTIES_PREFIX+JcloudsLocationConfig.DISABLE_ROOT_AND_PASSWORD_SSH.getName(), false);
             jcloudsLocation = (JcloudsLocation) managementContext.getLocationRegistry().resolve(AWS_EC2_LOCATION_SPEC);
 
             machine = createEc2Machine();
@@ -378,7 +351,7 @@ public class JcloudsLoginLiveTest extends AbstractJcloudsLiveTest {
         return obtainMachine(MutableMap.<String,Object>builder()
                 .putAll(conf)
                 .putIfAbsent("imageId", AWS_EC2_CENTOS_IMAGE_ID)
-                .putIfAbsent("hardwareId", AWS_EC2_MEDIUM_HARDWARE_ID)
+                .putIfAbsent("hardwareId", AWS_EC2_SMALL_HARDWARE_ID)
                 .putIfAbsent("inboundPorts", ImmutableList.of(22))
                 .build());
     }
@@ -454,200 +427,3 @@ public class JcloudsLoginLiveTest extends AbstractJcloudsLiveTest {
         }
     }
 }
-
-/*
-java.lang.IllegalStateException: Cannot establish ssh connection to myname @ SshMachineLocation[54.145.143.232:myname@54.145.143.232/54.145.143.232:22(id=TFlQ84Ob)] (keyboard-interactive auth not allowed by server). 
-Ensure that passwordless and passphraseless ssh access is enabled using standard keys from ~/.ssh or as configured in brooklyn.properties. Check that the target host is accessible, that credentials are correct (location and permissions if using a key), that the SFTP subsystem is available on the remote side, and that there is sufficient random noise in /dev/random on both ends. To debug less common causes, see the original error in the trace or log, and/or enable 'net.schmizz' (sshj) logging.
-    at org.apache.brooklyn.location.ssh.SshMachineLocation.connectSsh(SshMachineLocation.java:618)
-    at org.apache.brooklyn.location.ssh.SshMachineLocation$8.get(SshMachineLocation.java:368)
-    at org.apache.brooklyn.location.ssh.SshMachineLocation$8.get(SshMachineLocation.java:1)
-    at org.apache.brooklyn.util.pool.BasicPool.leaseObject(BasicPool.java:134)
-    at org.apache.brooklyn.util.pool.BasicPool.exec(BasicPool.java:143)
-    at org.apache.brooklyn.location.ssh.SshMachineLocation.execSsh(SshMachineLocation.java:552)
-    at org.apache.brooklyn.location.ssh.SshMachineLocation$13.execWithTool(SshMachineLocation.java:704)
-    at org.apache.brooklyn.util.core.task.system.internal.ExecWithLoggingHelpers.execWithLogging(ExecWithLoggingHelpers.java:164)
-    at org.apache.brooklyn.util.core.task.system.internal.ExecWithLoggingHelpers.execWithLogging(ExecWithLoggingHelpers.java:105)
-    at org.apache.brooklyn.util.core.task.system.internal.ExecWithLoggingHelpers.execCommands(ExecWithLoggingHelpers.java:97)
-    at org.apache.brooklyn.location.ssh.SshMachineLocation.execCommands(SshMachineLocation.java:668)
-    at org.apache.brooklyn.location.ssh.SshMachineLocation.execCommands(SshMachineLocation.java:659)
-    at org.apache.brooklyn.location.jclouds.JcloudsLocation.obtainOnce(JcloudsLocation.java:867)
-    at org.apache.brooklyn.location.jclouds.JcloudsLocation.obtain(JcloudsLocation.java:607)
-    at org.apache.brooklyn.location.jclouds.AbstractJcloudsLiveTest.obtainMachine(AbstractJcloudsLiveTest.java:140)
-    at org.apache.brooklyn.location.jclouds.JcloudsLoginLiveTest.createEc2Machine(JcloudsLoginLiveTest.java:351)
-    at org.apache.brooklyn.location.jclouds.JcloudsLoginLiveTest.createEc2Machine(JcloudsLoginLiveTest.java:347)
-    at org.apache.brooklyn.location.jclouds.JcloudsLoginLiveTest.testSpecifyingPasswordAndSshKeysPrefersKeys(JcloudsLoginLiveTest.java:181)
-    at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
-    at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
-    at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
-    at java.lang.reflect.Method.invoke(Method.java:606)
-    at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:84)
-    at org.testng.internal.Invoker.invokeMethod(Invoker.java:714)
-    at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:901)
-    at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1231)
-    at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:127)
-    at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:111)
-    at org.testng.TestRunner.privateRun(TestRunner.java:767)
-    at org.testng.TestRunner.run(TestRunner.java:617)
-    at org.testng.SuiteRunner.runTest(SuiteRunner.java:348)
-    at org.testng.SuiteRunner.runSequentially(SuiteRunner.java:343)
-    at org.testng.SuiteRunner.privateRun(SuiteRunner.java:305)
-    at org.testng.SuiteRunner.run(SuiteRunner.java:254)
-    at org.testng.SuiteRunnerWorker.runSuite(SuiteRunnerWorker.java:52)
-    at org.testng.SuiteRunnerWorker.run(SuiteRunnerWorker.java:86)
-    at org.testng.TestNG.runSuitesSequentially(TestNG.java:1224)
-    at org.testng.TestNG.runSuitesLocally(TestNG.java:1149)
-    at org.testng.TestNG.run(TestNG.java:1057)
-    at org.testng.remote.RemoteTestNG.run(RemoteTestNG.java:111)
-    at org.testng.remote.RemoteTestNG.initAndRun(RemoteTestNG.java:204)
-    at org.testng.remote.RemoteTestNG.main(RemoteTestNG.java:175)
-Caused by: org.apache.brooklyn.util.core.internal.ssh.SshException: (myname@54.145.143.232:22) failed to connect: (myname@54.145.143.232:22) (myname@54.145.143.232:22) error acquiring {hostAndPort=54.145.143.232:22, user=myname, ssh=1006086439, password=xxxxxx, privateKeyFile=/Users/aled/.ssh/id_rsa, privateKey=xxxxxx, connectTimeout=0, sessionTimeout=0} (attempt 4/4, in time 4.22s/2m); out of retries: Exhausted available authentication methods
-    at org.apache.brooklyn.util.core.internal.ssh.SshAbstractTool.propagate(SshAbstractTool.java:169)
-    at org.apache.brooklyn.util.core.internal.ssh.sshj.SshjTool.connect(SshjTool.java:208)
-    at org.apache.brooklyn.location.ssh.SshMachineLocation.connectSsh(SshMachineLocation.java:610)
-    ... 41 more
-Caused by: org.apache.brooklyn.util.core.internal.ssh.SshException: (myname@54.145.143.232:22) (myname@54.145.143.232:22) error acquiring {hostAndPort=54.145.143.232:22, user=myname, ssh=1006086439, password=xxxxxx, privateKeyFile=/Users/aled/.ssh/id_rsa, privateKey=xxxxxx, connectTimeout=0, sessionTimeout=0} (attempt 4/4, in time 4.22s/2m); out of retries: Exhausted available authentication methods
-    at org.apache.brooklyn.util.core.internal.ssh.SshAbstractTool.propagate(SshAbstractTool.java:169)
-    at org.apache.brooklyn.util.core.internal.ssh.sshj.SshjTool.acquire(SshjTool.java:663)
-    at org.apache.brooklyn.util.core.internal.ssh.sshj.SshjTool.acquire(SshjTool.java:616)
-    at org.apache.brooklyn.util.core.internal.ssh.sshj.SshjTool.connect(SshjTool.java:205)
-    ... 42 more
-Caused by: net.schmizz.sshj.userauth.UserAuthException: Exhausted available authentication methods
-    at net.schmizz.sshj.userauth.UserAuthImpl.authenticate(UserAuthImpl.java:114)
-    at net.schmizz.sshj.SSHClient.auth(SSHClient.java:205)
-    at net.schmizz.sshj.SSHClient.auth(SSHClient.java:190)
-    at net.schmizz.sshj.SSHClient.authPassword(SSHClient.java:266)
-    at net.schmizz.sshj.SSHClient.authPassword(SSHClient.java:236)
-    at net.schmizz.sshj.SSHClient.authPassword(SSHClient.java:220)
-    at org.apache.brooklyn.util.core.internal.ssh.sshj.SshjClientConnection.create(SshjClientConnection.java:191)
-    at org.apache.brooklyn.util.core.internal.ssh.sshj.SshjClientConnection.create(SshjClientConnection.java:1)
-    at org.apache.brooklyn.util.core.internal.ssh.sshj.SshjTool.acquire(SshjTool.java:630)
-    ... 44 more
-Caused by: net.schmizz.sshj.userauth.UserAuthException: keyboard-interactive auth not allowed by server
-    at net.schmizz.sshj.userauth.UserAuthImpl.authenticate(UserAuthImpl.java:81)
-    ... 52 more
-
-
-
-java.lang.IllegalStateException: Connection failed for root@54.157.202.147:22 (aws-ec2:us-east-1) after waiting 5m
-    at org.apache.brooklyn.location.jclouds.JcloudsLocation.waitForReachable(JcloudsLocation.java:2645)
-    at org.apache.brooklyn.location.jclouds.JcloudsLocation.waitForSshable(JcloudsLocation.java:2598)
-    at org.apache.brooklyn.location.jclouds.JcloudsLocation.obtainOnce(JcloudsLocation.java:789)
-    at org.apache.brooklyn.location.jclouds.JcloudsLocation.obtain(JcloudsLocation.java:607)
-    at org.apache.brooklyn.location.jclouds.AbstractJcloudsLiveTest.obtainMachine(AbstractJcloudsLiveTest.java:140)
-    at org.apache.brooklyn.location.jclouds.JcloudsLoginLiveTest.createEc2Machine(JcloudsLoginLiveTest.java:351)
-    at org.apache.brooklyn.location.jclouds.JcloudsLoginLiveTest.createEc2Machine(JcloudsLoginLiveTest.java:347)
-    at org.apache.brooklyn.location.jclouds.JcloudsLoginLiveTest.testSpecifyingPasswordWhenNoDefaultKeyFilesExistWithRootUser(JcloudsLoginLiveTest.java:275)
-    at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
-    at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
-    at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
-    at java.lang.reflect.Method.invoke(Method.java:606)
-    at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:84)
-    at org.testng.internal.Invoker.invokeMethod(Invoker.java:714)
-    at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:901)
-    at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1231)
-    at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:127)
-    at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:111)
-    at org.testng.TestRunner.privateRun(TestRunner.java:767)
-    at org.testng.TestRunner.run(TestRunner.java:617)
-    at org.testng.SuiteRunner.runTest(SuiteRunner.java:348)
-    at org.testng.SuiteRunner.runSequentially(SuiteRunner.java:343)
-    at org.testng.SuiteRunner.privateRun(SuiteRunner.java:305)
-    at org.testng.SuiteRunner.run(SuiteRunner.java:254)
-    at org.testng.SuiteRunnerWorker.runSuite(SuiteRunnerWorker.java:52)
-    at org.testng.SuiteRunnerWorker.run(SuiteRunnerWorker.java:86)
-    at org.testng.TestNG.runSuitesSequentially(TestNG.java:1224)
-    at org.testng.TestNG.runSuitesLocally(TestNG.java:1149)
-    at org.testng.TestNG.run(TestNG.java:1057)
-    at org.testng.remote.RemoteTestNG.run(RemoteTestNG.java:111)
-    at org.testng.remote.RemoteTestNG.initAndRun(RemoteTestNG.java:204)
-    at org.testng.remote.RemoteTestNG.main(RemoteTestNG.java:175)
-Caused by: java.lang.IllegalStateException: Cannot establish ssh connection to root @ SshMachineLocation[SshMachineLocation:dBCu:root@54.157.202.147/54.157.202.147:22(id=dBCuzqY5)] (keyboard-interactive auth not allowed by server). 
-Ensure that passwordless and passphraseless ssh access is enabled using standard keys from ~/.ssh or as configured in brooklyn.properties. Check that the target host is accessible, that credentials are correct (location and permissions if using a key), that the SFTP subsystem is available on the remote side, and that there is sufficient random noise in /dev/random on both ends. To debug less common causes, see the original error in the trace or log, and/or enable 'net.schmizz' (sshj) logging.
-    at org.apache.brooklyn.location.ssh.SshMachineLocation.connectSsh(SshMachineLocation.java:618)
-    at org.apache.brooklyn.location.ssh.SshMachineLocation$8.get(SshMachineLocation.java:368)
-    at org.apache.brooklyn.location.ssh.SshMachineLocation$8.get(SshMachineLocation.java:1)
-    at org.apache.brooklyn.util.pool.BasicPool.leaseObject(BasicPool.java:134)
-    at org.apache.brooklyn.util.pool.BasicPool.exec(BasicPool.java:143)
-    at org.apache.brooklyn.location.ssh.SshMachineLocation.execSsh(SshMachineLocation.java:552)
-    at org.apache.brooklyn.location.ssh.SshMachineLocation$13.execWithTool(SshMachineLocation.java:704)
-    at org.apache.brooklyn.util.core.task.system.internal.ExecWithLoggingHelpers.execWithLogging(ExecWithLoggingHelpers.java:164)
-    at org.apache.brooklyn.util.core.task.system.internal.ExecWithLoggingHelpers.execScript(ExecWithLoggingHelpers.java:80)
-    at org.apache.brooklyn.location.ssh.SshMachineLocation.execScript(SshMachineLocation.java:688)
-    at org.apache.brooklyn.location.ssh.SshMachineLocation.execScript(SshMachineLocation.java:682)
-    at org.apache.brooklyn.location.jclouds.JcloudsLocation$36.call(JcloudsLocation.java:2583)
-    at org.apache.brooklyn.location.jclouds.JcloudsLocation$36.call(JcloudsLocation.java:1)
-    at org.apache.brooklyn.util.repeat.Repeater.runKeepingError(Repeater.java:332)
-    at org.apache.brooklyn.location.jclouds.JcloudsLocation.waitForReachable(JcloudsLocation.java:2642)
-    ... 31 more
-Caused by: org.apache.brooklyn.util.core.internal.ssh.SshException: (root@54.157.202.147:22) failed to connect: (root@54.157.202.147:22) (root@54.157.202.147:22) error acquiring {hostAndPort=54.157.202.147:22, user=root, ssh=353052349, password=xxxxxx, privateKeyFile=null, privateKey=null, connectTimeout=0, sessionTimeout=0} (attempt 1/1, in time 793ms/30s); out of retries: Exhausted available authentication methods
-    at org.apache.brooklyn.util.core.internal.ssh.SshAbstractTool.propagate(SshAbstractTool.java:169)
-    at org.apache.brooklyn.util.core.internal.ssh.sshj.SshjTool.connect(SshjTool.java:208)
-    at org.apache.brooklyn.location.ssh.SshMachineLocation.connectSsh(SshMachineLocation.java:610)
-    ... 45 more
-Caused by: org.apache.brooklyn.util.core.internal.ssh.SshException: (root@54.157.202.147:22) (root@54.157.202.147:22) error acquiring {hostAndPort=54.157.202.147:22, user=root, ssh=353052349, password=xxxxxx, privateKeyFile=null, privateKey=null, connectTimeout=0, sessionTimeout=0} (attempt 1/1, in time 793ms/30s); out of retries: Exhausted available authentication methods
-    at org.apache.brooklyn.util.core.internal.ssh.SshAbstractTool.propagate(SshAbstractTool.java:169)
-    at org.apache.brooklyn.util.core.internal.ssh.sshj.SshjTool.acquire(SshjTool.java:663)
-    at org.apache.brooklyn.util.core.internal.ssh.sshj.SshjTool.acquire(SshjTool.java:616)
-    at org.apache.brooklyn.util.core.internal.ssh.sshj.SshjTool.connect(SshjTool.java:205)
-    ... 46 more
-Caused by: net.schmizz.sshj.userauth.UserAuthException: Exhausted available authentication methods
-    at net.schmizz.sshj.userauth.UserAuthImpl.authenticate(UserAuthImpl.java:114)
-    at net.schmizz.sshj.SSHClient.auth(SSHClient.java:205)
-    at net.schmizz.sshj.SSHClient.auth(SSHClient.java:190)
-    at net.schmizz.sshj.SSHClient.authPassword(SSHClient.java:266)
-    at net.schmizz.sshj.SSHClient.authPassword(SSHClient.java:236)
-    at net.schmizz.sshj.SSHClient.authPassword(SSHClient.java:220)
-    at org.apache.brooklyn.util.core.internal.ssh.sshj.SshjClientConnection.create(SshjClientConnection.java:191)
-    at org.apache.brooklyn.util.core.internal.ssh.sshj.SshjClientConnection.create(SshjClientConnection.java:1)
-    at org.apache.brooklyn.util.core.internal.ssh.sshj.SshjTool.acquire(SshjTool.java:630)
-    ... 48 more
-Caused by: net.schmizz.sshj.userauth.UserAuthException: keyboard-interactive auth not allowed by server
-    at net.schmizz.sshj.userauth.UserAuthImpl.authenticate(UserAuthImpl.java:81)
-    ... 56 more
-
-
-
-WE NEED TO RETURN THE CREDENTIALS + THE RIGHT HOST-AND-PORT FROM THE FIRST CALL TO waitForSshable, AS THE SECOND TIME
-THE NODE DOESN'T HAVE A CREDENTIAL SO getFirstReachableAddress fails?!
-
-java.lang.IllegalStateException: Unable to connect SshClient to {id=us-east-1/i-392ec287, providerId=i-392ec287, name=brooklyn-nxcorw-aled-wfwa, location={scope=ZONE, id=us-east-1e, description=us-east-1e, parent=us-east-1, iso3166Codes=[US-VA]}, group=brooklyn-nxcorw-aled, imageId=us-east-1/ami-7d7bfc14, os={family=centos, arch=paravirtual, version=6.3, description=rightscale-us-east/RightImage_CentOS_6.3_x64_v5.8.8.5.manifest.xml, is64Bit=true}, status=RUNNING[running], loginPort=22, hostname=ip-10-180-231-178, privateAddresses=[10.180.231.178], publicAddresses=[54.205.16.230], hardware={id=m1.small, providerId=m1.small, processors=[{cores=1.0, speed=1.0}], ram=1740, volumes=[{type=LOCAL, size=10.0, device=/dev/sda1, bootDevice=true, durable=false}, {type=LOCAL, size=150.0, device=/dev/sda2, bootDevice=false, durable=false}], hypervisor=xen, supportsImage=Predicates.and(Predicates.alwaysTrue(),requiresVirtualizationType(paravirtual),Predicates.alwaysTrue(),Predicates.alwaysTrue())}, loginUser=myname, userMetadata={Name=brooklyn-nxcorw-aled-wfwa, brooklyn-user=aled}}; check that the node is accessible and that the SSH key exists and is correctly configured, including any passphrase defined
-    at org.apache.brooklyn.location.jclouds.JcloudsUtil.getFirstReachableAddress(JcloudsUtil.java:348)
-    at org.apache.brooklyn.location.jclouds.JcloudsLocation.waitForSshable(JcloudsLocation.java:2558)
-    at org.apache.brooklyn.location.jclouds.JcloudsLocation.obtainOnce(JcloudsLocation.java:789)
-    at org.apache.brooklyn.location.jclouds.JcloudsLocation.obtain(JcloudsLocation.java:607)
-    at org.apache.brooklyn.location.jclouds.AbstractJcloudsLiveTest.obtainMachine(AbstractJcloudsLiveTest.java:140)
-    at org.apache.brooklyn.location.jclouds.JcloudsLoginLiveTest.createEc2Machine(JcloudsLoginLiveTest.java:351)
-    at org.apache.brooklyn.location.jclouds.JcloudsLoginLiveTest.createEc2Machine(JcloudsLoginLiveTest.java:347)
-    at org.apache.brooklyn.location.jclouds.JcloudsLoginLiveTest.testSpecifyingPasswordWithPublicKeyAllowsKeyAccess(JcloudsLoginLiveTest.java:249)
-    at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
-    at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
-    at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
-    at java.lang.reflect.Method.invoke(Method.java:606)
-    at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:84)
-    at org.testng.internal.Invoker.invokeMethod(Invoker.java:714)
-    at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:901)
-    at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1231)
-    at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:127)
-    at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:111)
-    at org.testng.TestRunner.privateRun(TestRunner.java:767)
-    at org.testng.TestRunner.run(TestRunner.java:617)
-    at org.testng.SuiteRunner.runTest(SuiteRunner.java:348)
-    at org.testng.SuiteRunner.runSequentially(SuiteRunner.java:343)
-    at org.testng.SuiteRunner.privateRun(SuiteRunner.java:305)
-    at org.testng.SuiteRunner.run(SuiteRunner.java:254)
-    at org.testng.SuiteRunnerWorker.runSuite(SuiteRunnerWorker.java:52)
-    at org.testng.SuiteRunnerWorker.run(SuiteRunnerWorker.java:86)
-    at org.testng.TestNG.runSuitesSequentially(TestNG.java:1224)
-    at org.testng.TestNG.runSuitesLocally(TestNG.java:1149)
-    at org.testng.TestNG.run(TestNG.java:1057)
-    at org.testng.remote.RemoteTestNG.run(RemoteTestNG.java:111)
-    at org.testng.remote.RemoteTestNG.initAndRun(RemoteTestNG.java:204)
-    at org.testng.remote.RemoteTestNG.main(RemoteTestNG.java:175)
-Caused by: java.lang.IllegalArgumentException: no credential or ssh agent found for myname on node us-east-1/i-392ec287
-    at com.google.common.base.Preconditions.checkArgument(Preconditions.java:148)
-    at org.jclouds.compute.functions.CreateSshClientOncePortIsListeningOnNode.apply(CreateSshClientOncePortIsListeningOnNode.java:64)
-    at org.jclouds.compute.functions.CreateSshClientOncePortIsListeningOnNode.apply(CreateSshClientOncePortIsListeningOnNode.java:40)
-    at org.apache.brooklyn.location.jclouds.JcloudsUtil.getFirstReachableAddress(JcloudsUtil.java:339)
-    ... 31 more
-
-*/
