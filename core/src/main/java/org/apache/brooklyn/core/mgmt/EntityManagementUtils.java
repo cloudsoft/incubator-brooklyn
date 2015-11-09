@@ -290,8 +290,10 @@ public class EntityManagementUtils {
         return isWrapperApp(spec) && hasSingleChild(spec) &&
                 //equivalent to no keys starting with "brooklyn."
                 spec.getEnrichers().isEmpty() &&
+                spec.getEnricherSpecs().isEmpty() &&
                 spec.getInitializers().isEmpty() &&
-                spec.getPolicies().isEmpty();
+                spec.getPolicies().isEmpty() &&
+                spec.getPolicySpecs().isEmpty();
     }
 
     public static boolean isWrapperApp(EntitySpec<?> spec) {
