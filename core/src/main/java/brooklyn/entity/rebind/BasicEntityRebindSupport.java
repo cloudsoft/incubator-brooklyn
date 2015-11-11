@@ -110,6 +110,8 @@ public class BasicEntityRebindSupport extends AbstractBrooklynObjectRebindSuppor
                 entity.setConfig((ConfigKey<Object>)key, value);
             } catch (ClassNotFoundException e) {
                 throw Throwables.propagate(e);
+            } catch (IllegalArgumentException e) {
+                LOG.warn("Failed to rebind " + entry.getKey() + " with value " + entry.getValue() + " for entity " + entity, e);
             }
         }
         
