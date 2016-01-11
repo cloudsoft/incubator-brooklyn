@@ -29,11 +29,11 @@ import org.apache.brooklyn.api.sensor.AttributeSensor;
 import org.apache.brooklyn.config.ConfigKey;
 import org.apache.brooklyn.core.config.ConfigKeys;
 import org.apache.brooklyn.core.entity.AbstractEntity;
-import org.apache.brooklyn.core.entity.EntityAsserts;
 import org.apache.brooklyn.core.sensor.Sensors;
 import org.apache.brooklyn.core.test.BrooklynAppUnitTestSupport;
 import org.apache.brooklyn.feed.function.FunctionFeed;
 import org.apache.brooklyn.feed.function.FunctionPollConfig;
+import org.apache.brooklyn.test.EntityTestUtils;
 import org.apache.brooklyn.util.core.task.DynamicTasks;
 import org.apache.brooklyn.util.core.task.Tasks;
 import org.testng.annotations.DataProvider;
@@ -59,15 +59,15 @@ public class PollerTest extends BrooklynAppUnitTestSupport {
         Map<?, ?> timeoutFlags = ImmutableMap.of("timeout", "100ms");
         FeedExceptionEntity fee = app.createAndManageChild(spec);
         app.start(ImmutableList.of(app.newSimulatedLocation()));
-        EntityAsserts.assertAttributeEqualsEventually(timeoutFlags, fee, FeedExceptionEntity.FLAG, true);
+        EntityTestUtils.assertAttributeEqualsEventually(timeoutFlags, fee, FeedExceptionEntity.FLAG, true);
 
         fee.startThrowingPollExceptions();
-        EntityAsserts.assertAttributeEqualsEventually(timeoutFlags, fee, FeedExceptionEntity.FLAG, false);
-        EntityAsserts.assertAttributeEqualsContinually(timeoutFlags, fee, FeedExceptionEntity.FLAG, false);
+        EntityTestUtils.assertAttributeEqualsEventually(timeoutFlags, fee, FeedExceptionEntity.FLAG, false);
+        EntityTestUtils.assertAttributeEqualsContinually(timeoutFlags, fee, FeedExceptionEntity.FLAG, false);
 
         fee.stopThrowingPollExceptions();
-        EntityAsserts.assertAttributeEqualsEventually(timeoutFlags, fee, FeedExceptionEntity.FLAG, true);
-        EntityAsserts.assertAttributeEqualsContinually(timeoutFlags, fee, FeedExceptionEntity.FLAG, true);
+        EntityTestUtils.assertAttributeEqualsEventually(timeoutFlags, fee, FeedExceptionEntity.FLAG, true);
+        EntityTestUtils.assertAttributeEqualsContinually(timeoutFlags, fee, FeedExceptionEntity.FLAG, true);
     }
 
     @ImplementedBy(FeedExceptionEntityImpl.class)
